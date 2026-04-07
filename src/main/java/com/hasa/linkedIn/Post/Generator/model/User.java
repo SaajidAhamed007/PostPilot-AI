@@ -1,6 +1,9 @@
 package com.hasa.linkedIn.Post.Generator.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;                 // FIX 4: prevent infinite recursion
+import com.fasterxml.jackson.annotation.JsonProperty;              // FIX 3: hide password in responses
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -18,21 +21,40 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    // FIX 3: password will not be returned in API responses
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 
+    // FIX 2: default role assigned automatically
     @Column(nullable = false)
-    private String role;
+    private String role = "USER";
 
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    // FIX 4 + FIX 5:
+    // prevents infinite JSON recursion
+    // explicitly sets lazy loading
+    @JsonIgnore
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY
+    )
     private List<Post> posts;
 
+    // Default constructor
     public User() {}
 
-    public User(Long id, String name, String email, String password,
-                String role, LocalDateTime createdAt, List<Post> posts) {
+    // Parameterized constructor
+    public User(Long id,
+                String name,
+                String email,
+                String password,
+                String role,
+                LocalDateTime createdAt,
+                List<Post> posts) {
+
         this.id = id;
         this.name = name;
         this.email = email;
@@ -41,6 +63,16 @@ public class User {
         this.createdAt = createdAt;
         this.posts = posts;
     }
+
+    // FIX 1: automatically sets createdAt during insert
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // ======================
+    // GETTERS AND SETTERS
+    // ======================
 
     public Long getId() {
         return id;
