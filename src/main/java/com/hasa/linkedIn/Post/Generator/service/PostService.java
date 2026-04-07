@@ -4,6 +4,7 @@ import com.hasa.linkedIn.Post.Generator.model.Post;
 import com.hasa.linkedIn.Post.Generator.model.PostStatus;
 import com.hasa.linkedIn.Post.Generator.repository.PostRepository;
 import org.springframework.stereotype.Service;
+import com.hasa.linkedIn.Post.Generator.integration.GeminiClient;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,9 +14,11 @@ import java.util.Optional;
 public class PostService {
 
     private final PostRepository postRepository;
+    private final GeminiClient geminiClient;
 
-    public PostService(PostRepository postRepository) {
+    public PostService(PostRepository postRepository, GeminiClient geminiClient) {
         this.postRepository = postRepository;
+        this.geminiClient = geminiClient;
     }
 
     public Post createDraft(Post post) {
@@ -24,6 +27,38 @@ public class PostService {
         post.setCreatedAt(LocalDateTime.now());
 
         return postRepository.save(post);
+    }
+
+    public Post generatePost(String prompt) {
+
+        String aiResponse = geminiClient.generatePost(prompt);
+
+        String title = "";
+        String content = "";
+        String hashtags = "";
+
+        String[] parts = aiResponse.split("Content:");
+
+        if (parts.length > 1) {
+
+            title = parts[0].replace("Title:", "").trim();
+
+            String[] contentParts = parts[1].split("Hashtags:");
+
+            content = contentParts[0].trim();
+
+            if (contentParts.length > 1) {
+                hashtags = contentParts[1].trim();
+            }
+        }
+
+        Post post = new Post();
+
+        post.setTitle(title);
+        post.setContent(content);
+        post.setHashtags(hashtags);
+
+        return post;
     }
 
     public List<Post> getAllPosts() {

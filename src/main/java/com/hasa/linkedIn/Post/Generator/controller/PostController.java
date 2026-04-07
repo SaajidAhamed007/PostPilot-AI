@@ -46,4 +46,12 @@ public class PostController {
 
         return postService.schedulePost(id, scheduledTime);
     }
+    @PostMapping("/generate")
+    public Post generatePost(@RequestBody String prompt) {
+        return postService.generatePost(prompt);
+    }
+    @PostMapping("/draft")
+    public Post createDraft(@RequestBody Post post) {
+        return postService.createDraft(post);
+    }
 }
