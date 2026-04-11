@@ -19,18 +19,14 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // SIGNUP
     public User signup(User user) {
 
-        // prevent duplicate email
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Email already registered"
             );
         }
-
-        // hash password
         user.setPassword(
                 passwordEncoder.encode(user.getPassword())
         );
@@ -38,7 +34,6 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    // LOGIN
     public User login(User loginRequest) {
 
         User user = userRepository
@@ -60,5 +55,23 @@ public class AuthService {
         }
 
         return user;
+    }
+
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email).orElse(null);
+    }
+
+    public User createUser(User user) {
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Email already registered"
+            );
+        }
+        // Only encode password if it's not empty (OAuth users have empty password)
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+        }
+        return userRepository.save(user);
     }
 }

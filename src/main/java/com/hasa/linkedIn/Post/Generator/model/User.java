@@ -1,7 +1,7 @@
 package com.hasa.linkedIn.Post.Generator.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;                 // FIX 4: prevent infinite recursion
-import com.fasterxml.jackson.annotation.JsonProperty;              // FIX 3: hide password in responses
+import com.fasterxml.jackson.annotation.JsonIgnore; // FIX 4: prevent infinite recursion
+import com.fasterxml.jackson.annotation.JsonProperty; // FIX 3: hide password in responses
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -36,30 +36,25 @@ public class User {
     // prevents infinite JSON recursion
     // explicitly sets lazy loading
     @JsonIgnore
-    @OneToMany(
-            mappedBy = "user",
-            cascade = CascadeType.ALL,
-            fetch = FetchType.LAZY
-    )
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Post> posts;
 
     // Default constructor
-    public User() {}
+    public User() {
+    }
 
     // Parameterized constructor
     public User(Long id,
-                String name,
-                String email,
-                String password,
-                String role,
-                LocalDateTime createdAt,
-                List<Post> posts) {
+            String name,
+            String email,
+            String password,
+            LocalDateTime createdAt,
+            List<Post> posts) {
 
         this.id = id;
         this.name = name;
         this.email = email;
         this.password = password;
-        this.role = role;
         this.createdAt = createdAt;
         this.posts = posts;
     }
