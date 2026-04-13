@@ -2,6 +2,7 @@ package com.hasa.linkedIn.Post.Generator.controller;
 
 import com.hasa.linkedIn.Post.Generator.dto.PostRequest;
 import com.hasa.linkedIn.Post.Generator.dto.PostResponse;
+import com.hasa.linkedIn.Post.Generator.dto.GeneratePostRequest;
 import com.hasa.linkedIn.Post.Generator.model.Post;
 import com.hasa.linkedIn.Post.Generator.model.PostStatus;
 import com.hasa.linkedIn.Post.Generator.service.PostService;
@@ -87,8 +88,8 @@ public class PostController {
     }
 
     @PostMapping("/generate")
-    public ResponseEntity<PostResponse> generatePost(@RequestBody String prompt) {
-        Post post = postService.generatePost(prompt);
+    public ResponseEntity<PostResponse> generatePost(@Valid @RequestBody GeneratePostRequest generateRequest) {
+        Post post = postService.generatePost(generateRequest.getPrompt());
         return ResponseEntity.ok(PostResponse.fromPost(post));
     }
 

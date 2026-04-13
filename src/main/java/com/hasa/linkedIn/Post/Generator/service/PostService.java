@@ -57,6 +57,8 @@ public class PostService {
         post.setTitle(title);
         post.setContent(content);
         post.setHashtags(hashtags);
+        post.setStatus(PostStatus.DRAFT);
+        post.setCreatedAt(LocalDateTime.now());
 
         return post;
     }

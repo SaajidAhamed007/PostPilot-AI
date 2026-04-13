@@ -43,7 +43,7 @@ public class PostResponse {
                 post.getContent(),
                 post.getHashtags(),
                 post.getImageUrl(),
-                post.getStatus().toString(),
+                post.getStatus() != null ? post.getStatus().toString() : "DRAFT",
                 post.getScheduledTime(),
                 post.getCreatedAt(),
                 post.getUser() != null ? post.getUser().getId() : null,

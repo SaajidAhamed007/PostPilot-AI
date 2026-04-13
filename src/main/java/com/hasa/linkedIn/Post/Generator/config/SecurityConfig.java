@@ -32,6 +32,7 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> {}) // Enable CORS with defaults from CorsConfig
                 .sessionManagement(session -> session
                         // OAuth2 needs stateful sessions, so we allow sessions for OAuth
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -39,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll() // Allow auth endpoints without auth
                         .requestMatchers("/oauth2/**").permitAll() // Allow OAuth endpoints
                         .requestMatchers("/login/oauth2/**").permitAll() // Allow OAuth login
+                        .requestMatchers("OPTIONS", "/**").permitAll() // Allow all CORS preflight requests
                         .requestMatchers("/api/posts/**").authenticated()
                         .anyRequest().permitAll())
                 .oauth2Login(oauth2 -> oauth2
