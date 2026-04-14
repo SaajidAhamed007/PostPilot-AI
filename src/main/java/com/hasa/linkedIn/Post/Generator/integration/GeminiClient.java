@@ -20,22 +20,41 @@ public class GeminiClient {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public String generatePost(String prompt) {
+        return generatePost(prompt, null);
+    }
+
+    public String generatePost(String prompt, String existingContent) {
         // BUG FIX 1: Correct Gemini API endpoint with proper URL structure
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
+                + apiKey;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        String systemPrompt;
+        if (existingContent != null && !existingContent.isEmpty()) {
+            // Iterative refinement mode - refine existing content
+            systemPrompt = "You are a LinkedIn post expert. Refine and improve the following LinkedIn post based on the user's feedback:\n\n"
+                    + "EXISTING POST:\n"
+                    + existingContent
+                    + "\n\nUSER FEEDBACK/REQUEST:\n"
+                    + prompt
+                    + "\n\nProvide the refined post in this exact format:\n"
+                    + "Title:\n"
+                    + "Content:\n"
+                    + "Hashtags:";
+        } else {
+            // Initial generation mode - create new content
+            systemPrompt = "Generate a professional LinkedIn post based on this prompt:\n"
+                    + prompt
+                    + "\n\nReturn strictly in this format:\n"
+                    + "Title:\n"
+                    + "Content:\n"
+                    + "Hashtags:";
+        }
+
         Map<String, Object> textPart = new HashMap<>();
-        textPart.put(
-            "text",
-            "Generate a professional LinkedIn post based on this prompt:\n"
-                + prompt
-                + "\n\nReturn strictly in this format:\n"
-                + "Title:\n"
-                + "Content:\n"
-                + "Hashtags:"
-        );
+        textPart.put("text", systemPrompt);
 
         Map<String, Object> partsWrapper = new HashMap<>();
         partsWrapper.put("parts", List.of(textPart));

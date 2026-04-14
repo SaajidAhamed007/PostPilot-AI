@@ -89,7 +89,7 @@ public class PostController {
 
     @PostMapping("/generate")
     public ResponseEntity<PostResponse> generatePost(@Valid @RequestBody GeneratePostRequest generateRequest) {
-        Post post = postService.generatePost(generateRequest.getPrompt());
+        Post post = postService.generatePost(generateRequest.getPrompt(), generateRequest.getExistingContent());
         return ResponseEntity.ok(PostResponse.fromPost(post));
     }
 

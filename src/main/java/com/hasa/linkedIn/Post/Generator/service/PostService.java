@@ -30,8 +30,12 @@ public class PostService {
     }
 
     public Post generatePost(String prompt) {
+        return generatePost(prompt, null);
+    }
 
-        String aiResponse = geminiClient.generatePost(prompt);
+    public Post generatePost(String prompt, String existingContent) {
+
+        String aiResponse = geminiClient.generatePost(prompt, existingContent);
 
         String title = "";
         String content = "";

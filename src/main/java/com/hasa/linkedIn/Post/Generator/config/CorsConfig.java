@@ -12,11 +12,10 @@ public class CorsConfig implements WebMvcConfigurer {
         // Allow CORS for all endpoints from localhost:5173 and localhost:3000
         registry.addMapping("/**")
                 .allowedOrigins(
-                    "http://localhost:5173",
-                    "http://localhost:3000",
-                    "http://127.0.0.1:5173",
-                    "http://127.0.0.1:3000"
-                )
+                        "http://localhost:5173",
+                        "http://localhost:3000",
+                        "http://127.0.0.1:5173",
+                        "http://127.0.0.1:3000")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("Content-Type", "Authorization", "X-Requested-With", "Accept")
                 .exposedHeaders("Authorization", "X-Total-Count")
