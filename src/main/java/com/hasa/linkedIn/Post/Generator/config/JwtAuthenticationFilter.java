@@ -31,21 +31,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             String authHeader = request.getHeader("Authorization");
-            
+
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
-                
+
                 if (jwtUtil.validateToken(token)) {
                     String email = jwtUtil.getEmailFromToken(token);
                     Long userId = jwtUtil.getUserIdFromToken(token);
-                    
+
                     logger.debug("JWT token validated for user: {} (ID: {})", email, userId);
-                    
+
                     // Create authentication token
-                    UsernamePasswordAuthenticationToken authentication = 
-                            new UsernamePasswordAuthenticationToken(email, null, new ArrayList<>());
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(email,
+                            null, new ArrayList<>());
                     authentication.setDetails(userId);
-                    
+
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } else {
                     logger.warn("JWT token validation failed");

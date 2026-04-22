@@ -39,6 +39,20 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Post> posts;
 
+    // LinkedIn OAuth Fields
+    @Column(length = 500)
+    private String linkedinAccessToken;
+
+    @Column(length = 500)
+    private String linkedinRefreshToken;
+
+    private LocalDateTime linkedinTokenExpiry;
+
+    @Column(length = 100)
+    private String linkedinUserId;
+
+    private Boolean linkedinConnected = false;
+
     // Default constructor
     public User() {
     }
@@ -123,5 +137,45 @@ public class User {
 
     public void setPosts(List<Post> posts) {
         this.posts = posts;
+    }
+
+    public String getLinkedinAccessToken() {
+        return linkedinAccessToken;
+    }
+
+    public void setLinkedinAccessToken(String linkedinAccessToken) {
+        this.linkedinAccessToken = linkedinAccessToken;
+    }
+
+    public String getLinkedinRefreshToken() {
+        return linkedinRefreshToken;
+    }
+
+    public void setLinkedinRefreshToken(String linkedinRefreshToken) {
+        this.linkedinRefreshToken = linkedinRefreshToken;
+    }
+
+    public LocalDateTime getLinkedinTokenExpiry() {
+        return linkedinTokenExpiry;
+    }
+
+    public void setLinkedinTokenExpiry(LocalDateTime linkedinTokenExpiry) {
+        this.linkedinTokenExpiry = linkedinTokenExpiry;
+    }
+
+    public String getLinkedinUserId() {
+        return linkedinUserId;
+    }
+
+    public void setLinkedinUserId(String linkedinUserId) {
+        this.linkedinUserId = linkedinUserId;
+    }
+
+    public Boolean getLinkedinConnected() {
+        return linkedinConnected;
+    }
+
+    public void setLinkedinConnected(Boolean linkedinConnected) {
+        this.linkedinConnected = linkedinConnected;
     }
 }

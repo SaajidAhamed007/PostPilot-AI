@@ -14,7 +14,7 @@ public class AuthService {
     private final BCryptPasswordEncoder passwordEncoder;
 
     public AuthService(UserRepository userRepository,
-                       BCryptPasswordEncoder passwordEncoder) {
+            BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -24,12 +24,10 @@ public class AuthService {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Email already registered"
-            );
+                    "Email already registered");
         }
         user.setPassword(
-                passwordEncoder.encode(user.getPassword())
-        );
+                passwordEncoder.encode(user.getPassword()));
 
         return userRepository.save(user);
     }
@@ -38,20 +36,16 @@ public class AuthService {
 
         User user = userRepository
                 .findByEmail(loginRequest.getEmail())
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.UNAUTHORIZED,
-                                "Invalid email or password"
-                        ));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Invalid email or password"));
 
         if (!passwordEncoder.matches(
                 loginRequest.getPassword(),
-                user.getPassword()
-        )) {
+                user.getPassword())) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
-                    "Invalid email or password"
-            );
+                    "Invalid email or password");
         }
 
         return user;
@@ -65,8 +59,7 @@ public class AuthService {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Email already registered"
-            );
+                    "Email already registered");
         }
         // Only encode password if it's not empty (OAuth users have empty password)
         if (user.getPassword() != null && !user.getPassword().isEmpty()) {
