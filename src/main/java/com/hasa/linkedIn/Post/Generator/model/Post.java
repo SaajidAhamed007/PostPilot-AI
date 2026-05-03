@@ -1,6 +1,5 @@
 package com.hasa.linkedIn.Post.Generator.model;
 
-
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -36,11 +35,12 @@ public class Post {
     @JoinColumn(name = "user_id")
     private User user;
 
-    public Post() {}
+    public Post() {
+    }
 
     public Post(Long id, String title, String content, String hashtags,
-                PostStatus status, LocalDateTime scheduledTime,
-                String imageUrl, LocalDateTime createdAt, User user) {
+            PostStatus status, LocalDateTime scheduledTime,
+            String imageUrl, LocalDateTime createdAt, User user) {
         this.id = id;
         this.title = title;
         this.content = content;

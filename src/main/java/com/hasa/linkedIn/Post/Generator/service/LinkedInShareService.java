@@ -19,9 +19,11 @@ import java.util.Map;
 
 /**
  * Service to handle LinkedIn Share API integration.
- * This service uses the LinkedIn Share on LinkedIn API to post content to user's LinkedIn profile.
+ * This service uses the LinkedIn Share on LinkedIn API to post content to
+ * user's LinkedIn profile.
  * 
- * API Documentation: https://learn.microsoft.com/en-us/linkedin/shared/share-on-linkedin/share-on-linkedin
+ * API Documentation:
+ * https://learn.microsoft.com/en-us/linkedin/shared/share-on-linkedin/share-on-linkedin
  */
 @Service
 public class LinkedInShareService {
@@ -40,7 +42,7 @@ public class LinkedInShareService {
     /**
      * Shares a post to LinkedIn using the Share API.
      * 
-     * @param user The user with LinkedIn access token
+     * @param user        The user with LinkedIn access token
      * @param postContent The content to share
      * @return LinkedInShareResponse with share status
      */
@@ -52,8 +54,8 @@ public class LinkedInShareService {
             }
 
             // Check if token is expired
-            if (user.getLinkedinTokenExpiry() != null && 
-                LocalDateTime.now().isAfter(user.getLinkedinTokenExpiry())) {
+            if (user.getLinkedinTokenExpiry() != null &&
+                    LocalDateTime.now().isAfter(user.getLinkedinTokenExpiry())) {
                 logger.warn("LinkedIn access token expired for user {}", user.getId());
                 return LinkedInShareResponse.failure("LinkedIn token expired. Please reconnect your account");
             }
@@ -62,7 +64,7 @@ public class LinkedInShareService {
 
             // Build request payload
             Map<String, Object> payload = buildSharePayload(user, postContent);
-            
+
             // Create headers with OAuth token
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -71,26 +73,23 @@ public class LinkedInShareService {
             // Make the API request
             HttpEntity<String> entity = new HttpEntity<>(
                     objectMapper.writeValueAsString(payload),
-                    headers
-            );
+                    headers);
 
             ResponseEntity<String> response = restTemplate.exchange(
                     LINKEDIN_API_BASE,
                     HttpMethod.POST,
                     entity,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 String shareId = extractShareIdFromResponse(response.getBody());
                 logger.info("Post shared successfully to LinkedIn. Share ID: {}", shareId);
                 return LinkedInShareResponse.success(shareId);
             } else {
-                logger.error("Failed to share post to LinkedIn. Status: {}, Body: {}", 
+                logger.error("Failed to share post to LinkedIn. Status: {}, Body: {}",
                         response.getStatusCode(), response.getBody());
                 return LinkedInShareResponse.failure(
-                        "Failed to share: " + response.getStatusCode()
-                );
+                        "Failed to share: " + response.getStatusCode());
             }
 
         } catch (RestClientException e) {
@@ -105,14 +104,14 @@ public class LinkedInShareService {
     /**
      * Shares a post to LinkedIn with custom distribution parameters.
      * 
-     * @param user The user with LinkedIn access token
-     * @param postContent The content to share
+     * @param user           The user with LinkedIn access token
+     * @param postContent    The content to share
      * @param commentaryText Optional commentary to add
      * @return LinkedInShareResponse with share status
      */
     public LinkedInShareResponse sharePostToLinkedInWithCommentary(
-            User user, 
-            String postContent, 
+            User user,
+            String postContent,
             String commentaryText) {
         try {
             if (user.getLinkedinAccessToken() == null || user.getLinkedinAccessToken().isEmpty()) {
@@ -124,11 +123,10 @@ public class LinkedInShareService {
 
             // Build request payload with commentary
             Map<String, Object> payload = buildSharePayloadWithCommentary(
-                    user, 
-                    postContent, 
-                    commentaryText
-            );
-            
+                    user,
+                    postContent,
+                    commentaryText);
+
             // Create headers with OAuth token
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -137,26 +135,23 @@ public class LinkedInShareService {
             // Make the API request
             HttpEntity<String> entity = new HttpEntity<>(
                     objectMapper.writeValueAsString(payload),
-                    headers
-            );
+                    headers);
 
             ResponseEntity<String> response = restTemplate.exchange(
                     LINKEDIN_API_BASE,
                     HttpMethod.POST,
                     entity,
-                    String.class
-            );
+                    String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 String shareId = extractShareIdFromResponse(response.getBody());
                 logger.info("Post with commentary shared successfully to LinkedIn. Share ID: {}", shareId);
                 return LinkedInShareResponse.success(shareId);
             } else {
-                logger.error("Failed to share post with commentary to LinkedIn. Status: {}", 
+                logger.error("Failed to share post with commentary to LinkedIn. Status: {}",
                         response.getStatusCode());
                 return LinkedInShareResponse.failure(
-                        "Failed to share: " + response.getStatusCode()
-                );
+                        "Failed to share: " + response.getStatusCode());
             }
 
         } catch (Exception e) {
@@ -189,8 +184,8 @@ public class LinkedInShareService {
      * Builds the payload for LinkedIn Share API request with commentary.
      */
     private Map<String, Object> buildSharePayloadWithCommentary(
-            User user, 
-            String postContent, 
+            User user,
+            String postContent,
             String commentaryText) {
         Map<String, Object> payload = new HashMap<>();
 
@@ -223,7 +218,7 @@ public class LinkedInShareService {
                 logger.warn("Empty response body from LinkedIn API");
                 return "unknown";
             }
-            
+
             Map<String, Object> response = objectMapper.readValue(responseBody, Map.class);
             Object id = response.get("id");
             return id != null ? id.toString() : "unknown";

@@ -41,6 +41,10 @@ public class JwtUtil {
         return ((Number) getClaims(token).get("userId")).longValue();
     }
 
+    public Long extractUserId(String token) {
+        return getUserIdFromToken(token);
+    }
+
     private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

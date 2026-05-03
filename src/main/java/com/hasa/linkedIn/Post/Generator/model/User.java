@@ -51,6 +51,9 @@ public class User {
     @Column(length = 100)
     private String linkedinUserId;
 
+    @Column(length = 1000)
+    private String profilePicture;
+
     private Boolean linkedinConnected = false;
 
     // Default constructor
@@ -177,5 +180,13 @@ public class User {
 
     public void setLinkedinConnected(Boolean linkedinConnected) {
         this.linkedinConnected = linkedinConnected;
+    }
+
+    public String getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(String profilePicture) {
+        this.profilePicture = profilePicture;
     }
 }
