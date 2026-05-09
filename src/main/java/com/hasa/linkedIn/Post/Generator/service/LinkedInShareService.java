@@ -29,7 +29,7 @@ import java.util.Map;
 public class LinkedInShareService {
 
     private static final Logger logger = LoggerFactory.getLogger(LinkedInShareService.class);
-    private static final String LINKEDIN_API_BASE = "https://api.linkedin.com/rest/posts";
+    private static final String LINKEDIN_API_BASE = "https://api.linkedin.com/v2/ugcPosts";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -161,27 +161,50 @@ public class LinkedInShareService {
     }
 
     /**
-     * Builds the payload for LinkedIn Share API request.
-     * Uses the default share format with just the text content.
+     * Builds the payload for LinkedIn UGC Posts API request.
+     * This is the proper format for posting content to LinkedIn using the v2 API.
+     * 
+     * API Docs:
+     * https://learn.microsoft.com/en-us/linkedin/marketing/integrations/community-management/shares/ugc-post-api
      */
     private Map<String, Object> buildSharePayload(User user, String postContent) {
         Map<String, Object> payload = new HashMap<>();
 
-        // Set the text content
-        Map<String, Object> content = new HashMap<>();
-        content.put("text", postContent);
-        payload.put("content", content);
+        // Required: Author (user's LinkedIn ID in URN format)
+        if (user.getLinkedinUserId() == null || user.getLinkedinUserId().isEmpty()) {
+            logger.warn("User {} does not have LinkedIn user ID set", user.getId());
+            payload.put("author", "urn:li:person:unknown");
+        } else {
+            payload.put("author", "urn:li:person:" + user.getLinkedinUserId());
+        }
 
-        // Set distribution to PUBLIC (visible to everyone)
-        Map<String, Object> distribution = new HashMap<>();
-        distribution.put("feedDistribution", "PUBLIC");
-        payload.put("distribution", distribution);
+        // Required: Lifecycle state
+        payload.put("lifecycleState", "PUBLISHED");
 
+        // Required: Specific content with share commentary
+        Map<String, Object> shareContent = new HashMap<>();
+        Map<String, Object> commentary = new HashMap<>();
+        commentary.put("text", postContent);
+        shareContent.put("shareCommentary", commentary);
+        shareContent.put("shareMediaCategory", "NONE");
+
+        Map<String, Object> specificContent = new HashMap<>();
+        specificContent.put("com.linkedin.ugc.ShareContent", shareContent);
+        payload.put("specificContent", specificContent);
+
+        // Required: Visibility - PUBLIC
+        Map<String, Object> visibility = new HashMap<>();
+        visibility.put("com.linkedin.ugc.MemberNetworkVisibility", "PUBLIC");
+        payload.put("visibility", visibility);
+
+        logger.debug("Built UGC Post payload for user: {}", user.getId());
         return payload;
     }
 
     /**
-     * Builds the payload for LinkedIn Share API request with commentary.
+     * Builds the payload for LinkedIn UGC Posts API request with additional
+     * commentary.
+     * Uses the v2 UGC Posts API format.
      */
     private Map<String, Object> buildSharePayloadWithCommentary(
             User user,
@@ -189,23 +212,39 @@ public class LinkedInShareService {
             String commentaryText) {
         Map<String, Object> payload = new HashMap<>();
 
-        // Set the commentary text
+        // Required: Author (user's LinkedIn ID in URN format)
+        if (user.getLinkedinUserId() == null || user.getLinkedinUserId().isEmpty()) {
+            logger.warn("User {} does not have LinkedIn user ID set", user.getId());
+            payload.put("author", "urn:li:person:unknown");
+        } else {
+            payload.put("author", "urn:li:person:" + user.getLinkedinUserId());
+        }
+
+        // Required: Lifecycle state
+        payload.put("lifecycleState", "PUBLISHED");
+
+        // Required: Specific content with share commentary
+        Map<String, Object> shareContent = new HashMap<>();
         Map<String, Object> commentary = new HashMap<>();
-        commentary.put("text", commentaryText);
-        payload.put("commentary", commentary);
+        // Combine both the original content and the additional commentary
+        String combinedText = postContent;
+        if (commentaryText != null && !commentaryText.trim().isEmpty()) {
+            combinedText = postContent + "\n\n" + commentaryText;
+        }
+        commentary.put("text", combinedText);
+        shareContent.put("shareCommentary", commentary);
+        shareContent.put("shareMediaCategory", "NONE");
 
-        // Set the shared content reference
-        Map<String, Object> content = new HashMap<>();
-        Map<String, Object> media = new HashMap<>();
-        media.put("title", postContent);
-        content.put("media", media);
-        payload.put("content", content);
+        Map<String, Object> specificContent = new HashMap<>();
+        specificContent.put("com.linkedin.ugc.ShareContent", shareContent);
+        payload.put("specificContent", specificContent);
 
-        // Set distribution to PUBLIC
-        Map<String, Object> distribution = new HashMap<>();
-        distribution.put("feedDistribution", "PUBLIC");
-        payload.put("distribution", distribution);
+        // Required: Visibility - PUBLIC
+        Map<String, Object> visibility = new HashMap<>();
+        visibility.put("com.linkedin.ugc.MemberNetworkVisibility", "PUBLIC");
+        payload.put("visibility", visibility);
 
+        logger.debug("Built UGC Post payload with commentary for user: {}", user.getId());
         return payload;
     }
 

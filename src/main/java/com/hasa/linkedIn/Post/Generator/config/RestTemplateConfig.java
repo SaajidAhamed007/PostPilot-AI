@@ -5,19 +5,31 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Configuration
 public class RestTemplateConfig {
 
     @Bean
-    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+    public RestTemplate restTemplate(
+        RestTemplateBuilder builder
+    ) {
         return builder.build();
     }
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+
+        ObjectMapper mapper =
+            new ObjectMapper();
+
+        mapper.registerModule(
+            new JavaTimeModule()
+        );
+
+        return mapper;
     }
 
     @Bean

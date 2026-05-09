@@ -9,6 +9,7 @@ import com.hasa.linkedIn.Post.Generator.model.User;
 import com.hasa.linkedIn.Post.Generator.service.PostService;
 import com.hasa.linkedIn.Post.Generator.service.LinkedInShareService;
 import com.hasa.linkedIn.Post.Generator.service.UserService;
+import com.hasa.linkedIn.Post.Generator.config.JwtUtil;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,17 +32,21 @@ public class PostController {
         private final PostService postService;
         private final LinkedInShareService linkedInShareService;
         private final UserService userService;
+        private final JwtUtil jwtUtil;
 
         public PostController(PostService postService,
                         LinkedInShareService linkedInShareService,
-                        UserService userService) {
+                        UserService userService,
+                        JwtUtil jwtUtil) {
                 this.postService = postService;
                 this.linkedInShareService = linkedInShareService;
                 this.userService = userService;
+                this.jwtUtil = jwtUtil;
         }
 
         @PostMapping
         public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest postRequest) {
+                User user = getCurrentUser();
                 Post post = new Post();
                 post.setTitle(postRequest.getTitle());
                 post.setContent(postRequest.getContent());
@@ -49,15 +54,30 @@ public class PostController {
                 post.setImageUrl(postRequest.getImageUrl());
                 post.setStatus(PostStatus.DRAFT);
 
-                Post createdPost = postService.createDraft(post);
+                Post createdPost = postService.createDraftForUser(post, user);
                 return ResponseEntity
                                 .status(HttpStatus.CREATED)
                                 .body(PostResponse.fromPost(createdPost));
         }
 
         @GetMapping
-        public ResponseEntity<List<PostResponse>> getAllPosts() {
-                List<Post> posts = postService.getAllPosts();
+        public ResponseEntity<List<PostResponse>> getAllPosts(@RequestParam(required = false) String status) {
+                User user = getCurrentUser();
+                List<Post> posts;
+
+                if (status == null || status.isBlank()) {
+                        posts = postService.getPostsForUser(user);
+                } else if ("NON_PUBLISHED".equalsIgnoreCase(status)) {
+                        posts = postService.getNonPublishedPostsForUser(user);
+                } else {
+                        try {
+                                PostStatus postStatus = PostStatus.valueOf(status.toUpperCase());
+                                posts = postService.getPostsForUserByStatus(user, postStatus);
+                        } catch (IllegalArgumentException ex) {
+                                return ResponseEntity.badRequest().build();
+                        }
+                }
+
                 List<PostResponse> responses = posts.stream()
                                 .map(PostResponse::fromPost)
                                 .collect(Collectors.toList());
@@ -73,23 +93,22 @@ public class PostController {
 
         @DeleteMapping("/{id}")
         public ResponseEntity<Void> deletePost(@PathVariable Long id) {
-                postService.deletePost(id);
+                User user = getCurrentUser();
+                postService.deletePost(id, user);
                 return ResponseEntity.noContent().build();
         }
 
         @PutMapping("/{id}")
         public ResponseEntity<PostResponse> updatePost(@PathVariable Long id,
                         @Valid @RequestBody PostRequest postRequest) {
+                User user = getCurrentUser();
                 Post post = new Post();
                 post.setTitle(postRequest.getTitle());
                 post.setContent(postRequest.getContent());
                 post.setHashtags(postRequest.getHashtags());
                 post.setImageUrl(postRequest.getImageUrl());
 
-                // Note: You'll need to implement updatePost in PostService
-                // For now, this is a placeholder
-                Post updatedPost = postService.getPostById(id)
-                                .orElseThrow(() -> new RuntimeException("Post not found"));
+                Post updatedPost = postService.updatePost(id, post, user);
 
                 return ResponseEntity.ok(PostResponse.fromPost(updatedPost));
         }
@@ -190,6 +209,17 @@ public class PostController {
                 }
         }
 
+        private User getCurrentUser() {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication == null || authentication.getName() == null) {
+                        throw new RuntimeException("Unauthorized");
+                }
+
+                String email = authentication.getName();
+                return userService.findByEmail(email)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+        }
+
         /**
          * Shares a post to LinkedIn with custom commentary.
          * 
@@ -264,6 +294,105 @@ public class PostController {
                                         .body(Map.of(
                                                         "success", false,
                                                         "message", "An error occurred: " + e.getMessage()));
+                }
+        }
+
+        /**
+         * Creates a post directly on LinkedIn using the authenticated user's LinkedIn
+         * token.
+         * 
+         * This endpoint:
+         * 1. Validates JWT token from Authorization header
+         * 2. Extracts user ID from JWT
+         * 3. Fetches user and their LinkedIn access token from DB
+         * 4. Calls LinkedIn UGC Posts API to create the post
+         * 
+         * @param authHeader Authorization header containing Bearer JWT
+         * @param request    Request body containing post text
+         * @return Response with success status or error message
+         */
+        @PostMapping("/linkedin/post")
+        public ResponseEntity<?> createLinkedInPost(
+                        @RequestHeader("Authorization") String authHeader,
+                        @RequestBody Map<String, String> request) {
+
+                try {
+                        // Validate header exists
+                        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                                logger.warn("Missing or invalid Authorization header");
+                                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                                .body(Map.of("error", "Missing or invalid Authorization header"));
+                        }
+
+                        // Extract token
+                        String token = authHeader.substring(7);
+
+                        // Validate JWT token
+                        if (!jwtUtil.validateToken(token)) {
+                                logger.warn("Invalid JWT token");
+                                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                                .body(Map.of("error", "Invalid JWT token"));
+                        }
+
+                        // Get user ID from token
+                        Long userId = jwtUtil.extractUserId(token);
+                        logger.info("Processing LinkedIn post request for user: {}", userId);
+
+                        // Fetch user from database
+                        User user = userService.findById(userId)
+                                        .orElseThrow(() -> new RuntimeException("User not found"));
+
+                        // Check if LinkedIn is connected
+                        if (user.getLinkedinAccessToken() == null || user.getLinkedinAccessToken().isEmpty()) {
+                                logger.warn("User {} does not have LinkedIn connected", userId);
+                                return ResponseEntity.badRequest()
+                                                .body(Map.of("error",
+                                                                "LinkedIn account not connected. Please connect your LinkedIn account first."));
+                        }
+
+                        // Check if LinkedIn token is expired
+                        if (user.getLinkedinTokenExpiry() != null &&
+                                        LocalDateTime.now().isAfter(user.getLinkedinTokenExpiry())) {
+                                logger.warn("LinkedIn access token expired for user {}", userId);
+                                return ResponseEntity.badRequest()
+                                                .body(Map.of("error",
+                                                                "LinkedIn token expired. Please reconnect your account."));
+                        }
+
+                        // Get post text
+                        String text = request.get("text");
+                        if (text == null || text.trim().isEmpty()) {
+                                logger.warn("Empty post text");
+                                return ResponseEntity.badRequest()
+                                                .body(Map.of("error", "Post text is required"));
+                        }
+
+                        // Share to LinkedIn
+                        LinkedInShareService.LinkedInShareResponse shareResponse = linkedInShareService
+                                        .sharePostToLinkedIn(user, text);
+
+                        if (shareResponse.isSuccess()) {
+                                logger.info("Post successfully published to LinkedIn for user: {}", userId);
+                                return ResponseEntity.ok(Map.of(
+                                                "success", true,
+                                                "message", "Post published successfully to LinkedIn",
+                                                "shareId", shareResponse.getShareId()));
+                        } else {
+                                logger.error("Failed to publish post to LinkedIn: {}", shareResponse.getMessage());
+                                return ResponseEntity.badRequest()
+                                                .body(Map.of(
+                                                                "success", false,
+                                                                "error", shareResponse.getMessage()));
+                        }
+
+                } catch (RuntimeException e) {
+                        logger.error("Runtime error while creating LinkedIn post", e);
+                        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                        .body(Map.of("error", e.getMessage()));
+                } catch (Exception e) {
+                        logger.error("Unexpected error while creating LinkedIn post", e);
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                        .body(Map.of("error", "An unexpected error occurred: " + e.getMessage()));
                 }
         }
 }

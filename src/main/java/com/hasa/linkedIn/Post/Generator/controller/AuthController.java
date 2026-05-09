@@ -46,8 +46,13 @@ public class AuthController {
 
         @GetMapping("/auth/linkedin/login")
         public ResponseEntity<Void> login() {
+                // Required scopes for posting:
+                // - openid: OpenID Connect
+                // - profile: User profile info
+                // - email: User email
+                // - w_member_social: Write member social posts (REQUIRED FOR POSTING)
                 String scope = URLEncoder.encode(
-                                "openid profile email",
+                                "openid profile email w_member_social",
                                 StandardCharsets.UTF_8);
 
                 String url = "https://www.linkedin.com/oauth/v2/authorization"
@@ -336,14 +341,13 @@ public class AuthController {
                         // Redirect to frontend with token in query parameter
                         String jwtToken = jwtUtil.generateToken(user.getId(), user.getEmail());
 
-                        String frontendCallbackUrl =
-                        "http://localhost:5173/oauth-callback?token=" +
-                        URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
+                        String frontendCallbackUrl = "http://localhost:5173/oauth-callback?token=" +
+                                        URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
 
                         return ResponseEntity
-                                .status(HttpStatus.FOUND)
-                                .header("Location", frontendCallbackUrl)
-                                .build();
+                                        .status(HttpStatus.FOUND)
+                                        .header("Location", frontendCallbackUrl)
+                                        .build();
                 } catch (Exception e) {
                         logger.error("OAuth callback error", e);
                         return ResponseEntity
@@ -355,21 +359,21 @@ public class AuthController {
         }
 
         @GetMapping("/auth/me")
-                public ResponseEntity<?> getCurrentUser(
+        public ResponseEntity<?> getCurrentUser(
                         @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
                 try {
                         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                                "error", "Missing or invalid authorization header"));
+                                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                                                "error", "Missing or invalid authorization header"));
                         }
 
                         String token = authHeader.substring(7);
 
                         // ✅ Validate JWT
                         if (!jwtUtil.validateToken(token)) {
-                        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                                "error", "Invalid or expired token"));
+                                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                                                "error", "Invalid or expired token"));
                         }
 
                         // ✅ Extract user
@@ -377,24 +381,23 @@ public class AuthController {
 
                         Optional<User> userOptional = userRepository.findById(userId);
                         if (userOptional.isEmpty()) {
-                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
-                                "error", "User not found"));
+                                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                                                "error", "User not found"));
                         }
 
                         User user = userOptional.get();
 
                         return ResponseEntity.ok(Map.of(
-                                "id", user.getId(),
-                                "name", user.getName(),
-                                "email", user.getEmail(),
-                                "profilePicture", user.getProfilePicture(),
-                                "linkedinId", user.getLinkedinUserId()
-                        ));
+                                        "id", user.getId(),
+                                        "name", user.getName(),
+                                        "email", user.getEmail(),
+                                        "profilePicture", user.getProfilePicture(),
+                                        "linkedinId", user.getLinkedinUserId()));
 
                 } catch (Exception e) {
                         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                                "error", "Token verification failed",
-                                "details", e.getMessage()));
+                                        "error", "Token verification failed",
+                                        "details", e.getMessage()));
                 }
         }
 }

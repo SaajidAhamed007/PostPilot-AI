@@ -3,6 +3,7 @@ package com.hasa.linkedIn.Post.Generator.service;
 import com.hasa.linkedIn.Post.Generator.model.Post;
 import com.hasa.linkedIn.Post.Generator.model.PostStatus;
 import com.hasa.linkedIn.Post.Generator.repository.PostRepository;
+import com.hasa.linkedIn.Post.Generator.model.User;
 import org.springframework.stereotype.Service;
 import com.hasa.linkedIn.Post.Generator.integration.GeminiClient;
 
@@ -25,6 +26,14 @@ public class PostService {
 
         post.setStatus(PostStatus.DRAFT);
         post.setCreatedAt(LocalDateTime.now());
+
+        return postRepository.save(post);
+    }
+
+    public Post createDraftForUser(Post post, User user) {
+        post.setStatus(PostStatus.DRAFT);
+        post.setCreatedAt(LocalDateTime.now());
+        post.setUser(user);
 
         return postRepository.save(post);
     }
@@ -71,6 +80,18 @@ public class PostService {
         return postRepository.findAll();
     }
 
+    public List<Post> getPostsForUser(User user) {
+        return postRepository.findByUser(user);
+    }
+
+    public List<Post> getPostsForUserByStatus(User user, PostStatus status) {
+        return postRepository.findByUserAndStatus(user, status);
+    }
+
+    public List<Post> getNonPublishedPostsForUser(User user) {
+        return postRepository.findByUserAndStatusNot(user, PostStatus.POSTED);
+    }
+
     public Optional<Post> getPostById(Long id) {
         return postRepository.findById(id);
     }
@@ -107,7 +128,43 @@ public class PostService {
         return postRepository.save(post);
     }
 
+    public Post updatePost(Long id, Post updatedPost, User user) {
+        Optional<Post> optionalPost = postRepository.findById(id);
+
+        if (optionalPost.isEmpty()) {
+            throw new RuntimeException("Post not found");
+        }
+
+        Post existingPost = optionalPost.get();
+
+        if (existingPost.getUser() == null || !existingPost.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized to update this post");
+        }
+
+        existingPost.setTitle(updatedPost.getTitle());
+        existingPost.setContent(updatedPost.getContent());
+        existingPost.setHashtags(updatedPost.getHashtags());
+        existingPost.setImageUrl(updatedPost.getImageUrl());
+
+        return postRepository.save(existingPost);
+    }
+
     public void deletePost(Long id) {
+        postRepository.deleteById(id);
+    }
+
+    public void deletePost(Long id, User user) {
+        Optional<Post> optionalPost = postRepository.findById(id);
+
+        if (optionalPost.isEmpty()) {
+            throw new RuntimeException("Post not found");
+        }
+
+        Post existingPost = optionalPost.get();
+        if (existingPost.getUser() == null || !existingPost.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized to delete this post");
+        }
+
         postRepository.deleteById(id);
     }
 }
