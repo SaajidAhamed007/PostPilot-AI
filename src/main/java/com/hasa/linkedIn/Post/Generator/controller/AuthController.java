@@ -46,9 +46,9 @@ public class AuthController {
 
         @GetMapping("/auth/linkedin/login")
         public ResponseEntity<Void> login() {
-                // Required scopes for posting:
-                // - openid: OpenID Connect
-                // - profile: User profile info
+                // Required scopes:
+                // - openid: OpenID Connect (required for OIDC)
+                // - profile: User profile info (includes access to /me endpoint)
                 // - email: User email
                 // - w_member_social: Write member social posts (REQUIRED FOR POSTING)
                 String scope = URLEncoder.encode(
@@ -190,9 +190,12 @@ public class AuthController {
 
                         logger.info("User saved/updated successfully with LinkedIn token. ID: {}", user.getId());
 
-                        // Return response with LinkedIn access token (for frontend verification)
+                        // Generate JWT token for frontend
+                        String jwtToken = jwtUtil.generateToken(user.getId(), user.getEmail());
+
+                        // Return response with JWT token (NOT LinkedIn token)
                         Map<String, Object> response = new HashMap<>();
-                        response.put("token", accessToken); // LinkedIn token for frontend verification
+                        response.put("token", jwtToken);
                         response.put("user", Map.of(
                                         "id", user.getId(),
                                         "name", user.getName(),
@@ -214,20 +217,6 @@ public class AuthController {
                                         "error", "An unexpected error occurred during authentication",
                                         "details", e.getMessage()));
                 }
-        }
-
-        @GetMapping("/auth/debug")
-        public ResponseEntity<?> debugConfig() {
-                logger.info("=== LinkedIn OAuth Configuration Debug ===");
-                logger.info("Client ID configured: {}", clientId != null && !clientId.isEmpty());
-                logger.info("Client Secret configured: {}", clientSecret != null && !clientSecret.isEmpty());
-                logger.info("Redirect URI: {}", redirectUri);
-
-                return ResponseEntity.ok(Map.of(
-                                "clientIdConfigured", clientId != null && !clientId.isEmpty(),
-                                "clientSecretConfigured", clientSecret != null && !clientSecret.isEmpty(),
-                                "redirectUri", redirectUri,
-                                "status", "Check backend logs for more details"));
         }
 
         @GetMapping("/login/oauth2/code/linkedin")

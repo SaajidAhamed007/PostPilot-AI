@@ -13,6 +13,7 @@ public class PostResponse {
     private String status;
     private LocalDateTime scheduledTime;
     private LocalDateTime createdAt;
+    private LocalDateTime publishedAt;
     private Long userId;
     private String userName;
 
@@ -22,7 +23,7 @@ public class PostResponse {
 
     public PostResponse(Long id, String title, String content, String hashtags, String imageUrl,
             String status, LocalDateTime scheduledTime, LocalDateTime createdAt,
-            Long userId, String userName) {
+            LocalDateTime publishedAt, Long userId, String userName) {
         this.id = id;
         this.title = title;
         this.content = content;
@@ -31,6 +32,7 @@ public class PostResponse {
         this.status = status;
         this.scheduledTime = scheduledTime;
         this.createdAt = createdAt;
+        this.publishedAt = publishedAt;
         this.userId = userId;
         this.userName = userName;
     }
@@ -46,6 +48,7 @@ public class PostResponse {
                 post.getStatus() != null ? post.getStatus().toString() : "DRAFT",
                 post.getScheduledTime(),
                 post.getCreatedAt(),
+                post.getPublishedAt(),
                 post.getUser() != null ? post.getUser().getId() : null,
                 post.getUser() != null ? post.getUser().getName() : null);
     }
@@ -113,6 +116,14 @@ public class PostResponse {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(LocalDateTime publishedAt) {
+        this.publishedAt = publishedAt;
     }
 
     public Long getUserId() {

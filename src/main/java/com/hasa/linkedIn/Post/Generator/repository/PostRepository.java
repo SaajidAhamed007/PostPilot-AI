@@ -20,6 +20,5 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     List<Post> findByStatusAndScheduledTimeBefore(
             PostStatus status,
-            LocalDateTime time
-    );
+            LocalDateTime time);
 }
