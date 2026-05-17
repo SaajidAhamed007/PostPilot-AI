@@ -1,6 +1,7 @@
 package com.hasa.linkedIn.Post.Generator.service;
 
 import com.hasa.linkedIn.Post.Generator.integration.GeminiClient;
+import com.hasa.linkedIn.Post.Generator.kafka.KafkaPostProducer;
 import com.hasa.linkedIn.Post.Generator.model.Post;
 import com.hasa.linkedIn.Post.Generator.model.PostStatus;
 import com.hasa.linkedIn.Post.Generator.model.User;
@@ -16,15 +17,19 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final GeminiClient geminiClient;
+    private final KafkaPostProducer kafkaPostProducer;
     private final LinkedInShareService linkedInShareService;
 
     public PostService(
             PostRepository postRepository,
             GeminiClient geminiClient,
-            LinkedInShareService linkedInShareService) {
+            KafkaPostProducer kafkaPostProducer,
+            LinkedInShareService linkedInShareService
+    ) {
 
         this.postRepository = postRepository;
         this.geminiClient = geminiClient;
+        this.kafkaPostProducer = kafkaPostProducer;
         this.linkedInShareService = linkedInShareService;
     }
 
@@ -32,7 +37,10 @@ public class PostService {
     // CREATE DRAFT
     // =========================
 
-    public Post createDraftForUser(Post post, User user) {
+    public Post createDraftForUser(
+            Post post,
+            User user
+    ) {
 
         post.setStatus(PostStatus.DRAFT);
 
@@ -47,45 +55,79 @@ public class PostService {
     // PUBLISH NOW
     // =========================
 
-    public Post publishNow(Post post, User user) {
+    public Post publishNow(
+            Post post,
+            User user
+    ) {
 
-        post.setStatus(PostStatus.DRAFT);
+        post.setStatus(PostStatus.QUEUED);
 
         post.setCreatedAt(LocalDateTime.now());
 
         post.setUser(user);
 
-        Post savedPost = postRepository.save(post);
+        Post savedPost =
+                postRepository.save(post);
 
-        String fullContent = savedPost.getContent();
-
-        if (savedPost.getHashtags() != null &&
-                !savedPost.getHashtags().isBlank()) {
-
-            fullContent += "\n\n" +
-                    savedPost.getHashtags();
-        }
-
-        boolean success =
-                linkedInShareService.publishToLinkedIn(
-                        user,
-                        fullContent);
-
-        if (success) {
-
-            savedPost.setStatus(PostStatus.POSTED);
-
-            savedPost.setPublishedAt(
-                    LocalDateTime.now());
-
-            return postRepository.save(savedPost);
-        }
-
-        // If publish fails,
-        // keep it as DRAFT
+        kafkaPostProducer.publish(
+                savedPost.getId()
+        );
 
         return savedPost;
     }
+
+public void processPostPublishing(
+        Long postId
+) {
+
+    Post post =
+            postRepository.findById(postId)
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Post not found"
+                            ));
+
+    post.setStatus(
+            PostStatus.PUBLISHING
+    );
+
+    postRepository.save(post);
+
+    String fullContent =
+            post.getContent();
+
+    if (post.getHashtags() != null &&
+            !post.getHashtags().isBlank()) {
+
+        fullContent += "\n\n" +
+                post.getHashtags();
+    }
+
+    boolean success =
+            linkedInShareService.publishToLinkedIn(
+                    post.getUser(),
+                    fullContent
+            );
+
+    if (success) {
+
+        post.setStatus(
+                PostStatus.PUBLISHED
+        );
+
+        post.setPublishedAt(
+                LocalDateTime.now()
+        );
+
+    } else {
+
+        post.setStatus(
+                PostStatus.FAILED
+        );
+    }
+
+    postRepository.save(post);
+}
 
     // =========================
     // AI GENERATE POST
@@ -93,15 +135,19 @@ public class PostService {
 
     public Post generatePost(
             String prompt,
-            String existingContent) {
+            String existingContent
+    ) {
 
         String aiResponse =
                 geminiClient.generatePost(
                         prompt,
-                        existingContent);
+                        existingContent
+                );
 
         String title = "";
+
         String content = "";
+
         String hashtags = "";
 
         String[] parts =
@@ -116,7 +162,8 @@ public class PostService {
             String[] contentParts =
                     parts[1].split("Hashtags:");
 
-            content = contentParts[0].trim();
+            content =
+                    contentParts[0].trim();
 
             if (contentParts.length > 1) {
 
@@ -140,7 +187,9 @@ public class PostService {
     // GET ALL POSTS FOR USER
     // =========================
 
-    public List<Post> getPostsForUser(User user) {
+    public List<Post> getPostsForUser(
+            User user
+    ) {
 
         return postRepository.findByUser(user);
     }
@@ -151,13 +200,15 @@ public class PostService {
 
     public Post getPostByIdForUser(
             Long id,
-            User user) {
+            User user
+    ) {
 
-        Post post = postRepository
-                .findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Post not found"));
+        Post post =
+                postRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Post not found"
+                                ));
 
         if (post.getUser() == null ||
                 !post.getUser()
@@ -165,7 +216,8 @@ public class PostService {
                         .equals(user.getId())) {
 
             throw new RuntimeException(
-                    "Unauthorized access");
+                    "Unauthorized access"
+            );
         }
 
         return post;
@@ -178,29 +230,35 @@ public class PostService {
     public Post updatePost(
             Long id,
             Post updatedPost,
-            User user) {
+            User user
+    ) {
 
         Post existingPost =
                 getPostByIdForUser(id, user);
 
         if (existingPost.getStatus() ==
-                PostStatus.POSTED) {
+                PostStatus.PUBLISHED) {
 
             throw new RuntimeException(
-                    "Published posts cannot be edited");
+                    "Published posts cannot be edited"
+            );
         }
 
         existingPost.setTitle(
-                updatedPost.getTitle());
+                updatedPost.getTitle()
+        );
 
         existingPost.setContent(
-                updatedPost.getContent());
+                updatedPost.getContent()
+        );
 
         existingPost.setHashtags(
-                updatedPost.getHashtags());
+                updatedPost.getHashtags()
+        );
 
         existingPost.setImageUrl(
-                updatedPost.getImageUrl());
+                updatedPost.getImageUrl()
+        );
 
         return postRepository.save(existingPost);
     }
@@ -211,16 +269,18 @@ public class PostService {
 
     public void deletePost(
             Long id,
-            User user) {
+            User user
+    ) {
 
         Post existingPost =
                 getPostByIdForUser(id, user);
 
         if (existingPost.getStatus() ==
-                PostStatus.POSTED) {
+                PostStatus.PUBLISHED) {
 
             throw new RuntimeException(
-                    "Published posts cannot be deleted");
+                    "Published posts cannot be deleted"
+            );
         }
 
         postRepository.delete(existingPost);
@@ -233,21 +293,27 @@ public class PostService {
     public Post schedulePost(
             Long id,
             LocalDateTime scheduledTime,
-            User user) {
+            User user
+    ) {
 
         Post post =
                 getPostByIdForUser(id, user);
 
         if (post.getStatus() ==
-                PostStatus.POSTED) {
+                PostStatus.PUBLISHED) {
 
             throw new RuntimeException(
-                    "Published posts cannot be scheduled");
+                    "Published posts cannot be scheduled"
+            );
         }
 
-        post.setScheduledTime(scheduledTime);
+        post.setScheduledTime(
+                scheduledTime
+        );
 
-        post.setStatus(PostStatus.SCHEDULED);
+        post.setStatus(
+                PostStatus.SCHEDULED
+        );
 
         return postRepository.save(post);
     }
@@ -259,6 +325,7 @@ public class PostService {
     public List<Post> getScheduledPosts() {
 
         return postRepository.findByStatus(
-                PostStatus.SCHEDULED);
+                PostStatus.SCHEDULED
+        );
     }
 }
